@@ -159,6 +159,27 @@ app.post("/folder/:code/upload", (req, res) => {
   });
 });
 
+// 이미지 삭제 처리 (특정 코드 폴더의 특정 이미지)
+app.delete("/folder/:code/delete/:imageName", (req, res) => {
+  const code = req.params.code;
+  const imageName = req.params.imageName;
+  // URL 파라미터로 전달된 파일 이름이므로 decodeURIComponent를 사용합니다.
+  const decodedImageName = decodeURIComponent(imageName);
+  const filePath = path.join(__dirname, "uploads", code, decodedImageName);
+
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      console.error("파일 삭제 오류:", filePath, err);
+      // 클라이언트에는 좀 더 일반적인 오류 메시지를 보낼 수 있습니다.
+      return res
+        .status(500)
+        .json({ success: false, error: "파일 삭제 중 오류가 발생했습니다." });
+    }
+    console.log("파일 삭제 성공:", filePath);
+    res.json({ success: true });
+  });
+});
+
 app.listen(port, () => {
   console.log(`서버가 http://localhost:${port} 에서 실행 중입니다.`);
 });
