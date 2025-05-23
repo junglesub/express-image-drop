@@ -1,0 +1,17 @@
+{
+  "name": "express-image-drop",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Unlicense",
+  "description": "모바일에 최적화된 초간단 Express.js 이미지 업로드 서버 (Express Image Drop)",
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "multer": "^2.0.0"
+  }
+}

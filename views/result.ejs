@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>업로드 결과</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f4f4f4;
+        color: #333;
+        text-align: center;
+      }
+      .container {
+        max-width: 500px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+      }
+      p {
+        margin-bottom: 20px;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 4px;
+        margin-bottom: 20px;
+      }
+      a {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 4px;
+        text-decoration: none;
+      }
+      a:hover {
+        background-color: #0056b3;
+      }
+      .image-link {
+        word-break: break-all;
+      }
+      a.button-link {
+        display: inline-block;
+        padding: 10px 20px;
+        margin-top: 10px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 16px;
+      }
+      a.button-link:hover {
+        background-color: #0056b3;
+      }
+      .home-button {
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>업로드 성공!</h1>
+      <p>이미지가 성공적으로 업로드되었습니다.</p>
+      <p>이미지 이름: <%= imageName %></p>
+      <img id="uploadedImg" alt="업로드된 이미지" />
+      <p class="image-link">
+        이미지 URL:
+        <a id="imgUrl" href="#" target="_blank"></a>
+      </p>
+      <div class="home-button">
+        <a id="homeBtn" class="button-link">홈으로 돌아가기</a>
+      </div>
+    </div>
+
+    <script>
+      // 페이지 로드 시 localStorage에 현재 업로드된 이미지 이름을 추가하고, full url로 이미지와 링크를 표시
+      document.addEventListener("DOMContentLoaded", () => {
+        const currentImageName = "<%= imageName %>";
+        const baseUrl = window.location.protocol + "//" + window.location.host;
+        const fullUrl = `${baseUrl}/${currentImageName}`;
+
+        // 이미지 및 링크에 full url 적용
+        document.getElementById("uploadedImg").src = fullUrl;
+        document.getElementById("imgUrl").href = fullUrl;
+        document.getElementById("imgUrl").textContent = fullUrl;
+        document.getElementById("homeBtn").href = baseUrl + "/";
+
+        if (currentImageName) {
+          let uploadedImages =
+            JSON.parse(localStorage.getItem("uploadedImages")) || [];
+          if (!uploadedImages.includes(currentImageName)) {
+            uploadedImages.push(currentImageName);
+            localStorage.setItem(
+              "uploadedImages",
+              JSON.stringify(uploadedImages)
+            );
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
