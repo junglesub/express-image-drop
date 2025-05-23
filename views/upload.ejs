@@ -60,6 +60,15 @@
         border-radius: 4px;
         text-align: center;
       }
+      .success-message {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #c3e6cb;
+        border-radius: 4px;
+        text-align: center;
+      }
       .uploaded-list {
         margin-top: 30px;
       }
@@ -91,13 +100,20 @@
   </head>
   <body>
     <div class="container">
-      <h1>이미지 업로드</h1>
+      <h1>이미지 업로드 (폴더: <%= code %>)</h1>
 
-      <% if (typeof error !== 'undefined' && error) { %>
+      <% if (typeof error !== 'undefined' && error && error !== null) { %>
       <div class="error-message"><%= error %></div>
+      <% } %> <% if (typeof message !== 'undefined' && message && message !==
+      null) { %>
+      <div class="success-message"><%= message %></div>
       <% } %>
 
-      <form action="/upload" method="POST" enctype="multipart/form-data">
+      <form
+        action="/folder/<%= code %>/upload"
+        method="POST"
+        enctype="multipart/form-data"
+      >
         <div>
           <label for="imageName">이미지 이름 (확장자 제외):</label>
           <input type="text" id="imageName" name="imageName" required />
@@ -116,41 +132,36 @@
       </form>
 
       <div class="uploaded-list">
-        <h2>내가 업로드한 이미지 목록</h2>
-        <ul id="imageList"></ul>
+        <h2>폴더 내 이미지 목록 (<%= images.length %>개)</h2>
+        <% if (images.length > 0) { %>
+        <ul>
+          <% images.forEach(function(image) { %>
+          <li>
+            <a href="<%= image.url %>" target="_blank"><%= image.name %></a>
+          </li>
+          <% }); %>
+        </ul>
+        <% } else { %>
+        <p>이 폴더에는 아직 업로드된 이미지가 없습니다.</p>
+        <% } %>
+      </div>
+      <div style="margin-top: 20px; text-align: center">
+        <a
+          href="/"
+          style="
+            padding: 10px 20px;
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+          "
+          >처음으로</a
+        >
       </div>
     </div>
 
     <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        const imageList = document.getElementById("imageList");
-        let uploadedImages =
-          JSON.parse(localStorage.getItem("uploadedImages")) || [];
-
-        // 현재 호스트 기준으로 full url 생성
-        const baseUrl = window.location.protocol + "//" + window.location.host;
-
-        function renderImageList() {
-          imageList.innerHTML = ""; // 목록 초기화
-          if (uploadedImages.length === 0) {
-            const listItem = document.createElement("li");
-            listItem.textContent = "아직 업로드한 이미지가 없습니다.";
-            imageList.appendChild(listItem);
-            return;
-          }
-          uploadedImages.forEach((imgName) => {
-            const listItem = document.createElement("li");
-            const link = document.createElement("a");
-            link.href = `${baseUrl}/${imgName}`;
-            link.textContent = `${baseUrl}/${imgName}`;
-            link.target = "_blank";
-            listItem.appendChild(link);
-            imageList.appendChild(listItem);
-          });
-        }
-
-        renderImageList();
-      });
+      // localStorage 기반 목록 표시는 더 이상 사용하지 않으므로 삭제합니다.
     </script>
   </body>
 </html>

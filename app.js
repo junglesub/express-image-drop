@@ -10,79 +10,154 @@ const port = 3000;
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
-// 정적 파일 제공 (업로드된 이미지 접근용)
-app.use(express.static(path.join(__dirname, "uploads")));
+// URL-encoded 본문 파서 추가
+app.use(express.urlencoded({ extended: true }));
 
-// Multer 설정 (파일 저장 위치 및 파일명 커스터마이징)
+// 정적 파일 제공 (업로드된 이미지 접근용)
+// uploads 폴더 전체를 /uploads 경로로 제공
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Multer 설정
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads/");
+    const code = req.params.code; // URL 파라미터에서 코드 가져오기
+    if (!code) {
+      return cb(new Error("코드가 URL에 필요합니다."), false);
+    }
+    const uploadPath = path.join(__dirname, "uploads", code);
+    // 해당 코드명의 폴더가 없으면 생성
+    fs.mkdirSync(uploadPath, { recursive: true });
+    cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
-    // 사용자가 입력한 파일 이름과 원본 확장자를 사용
     const customName = req.body.imageName;
     if (!customName) {
-      // imageName이 없는 경우 원본 파일명을 사용 (오류 방지)
-      // 또는 여기서 오류를 발생시킬 수도 있습니다.
       return cb(new Error("이미지 이름이 필요합니다."), false);
     }
     const extension = path.extname(file.originalname);
-    cb(null, `${customName.replace(/\s+/g, "_")}${extension}`);
+    cb(null, `${customName.replace(/\\s+/g, "_")}${extension}`);
   },
 });
 
 const upload = multer({
   storage: storage,
   fileFilter: function (req, file, cb) {
+    const code = req.params.code;
     const customName = req.body.imageName;
     if (!customName) {
       return cb(new Error("이미지 이름이 비어있습니다."));
+    }
+    if (!code) {
+      return cb(new Error("코드가 URL에 필요합니다."));
     }
     const extension = path.extname(file.originalname);
     const filePath = path.join(
       __dirname,
       "uploads",
-      `${customName.replace(/\s+/g, "_")}${extension}`
+      code,
+      `${customName.replace(/\\s+/g, "_")}${extension}`
     );
     if (fs.existsSync(filePath)) {
-      // 파일이 이미 존재하면 업로드 거부
-      return cb(new Error("이미 동일한 이름의 파일이 존재합니다."), false);
+      return cb(new Error("동일한 이름의 파일이 이미 존재합니다."), false);
     }
-    // 파일이 존재하지 않으면 업로드 허용
     cb(null, true);
   },
 });
 
-// 루트 경로 - 이미지 업로드 폼 표시
+// 루트 경로 - 임시 코드 입력 페이지
 app.get("/", (req, res) => {
-  res.render("upload");
+  res.render("index");
 });
 
-// 이미지 업로드 처리
-app.post("/upload", (req, res) => {
-  upload.single("image")(req, res, function (err) {
+// 임시 코드 제출 처리
+app.post("/enter-code", (req, res) => {
+  const { tempCode } = req.body;
+  if (!tempCode || tempCode.trim() === "") {
+    return res.render("index", { error: "코드를 입력해주세요." });
+  }
+  // 코드를 사용하여 해당 폴더 뷰로 리디렉션
+  res.redirect(`/folder/${tempCode.trim()}`);
+});
+
+// 특정 코드의 폴더 뷰 - 이미지 업로드 폼 및 파일 목록 표시
+app.get("/folder/:code", (req, res) => {
+  const code = req.params.code;
+  const folderPath = path.join(__dirname, "uploads", code);
+
+  fs.readdir(folderPath, (err, files) => {
+    let imageFiles = [];
     if (err) {
-      // Multer 오류, fileFilter 오류 또는 기타 오류 처리
-      // 오류 메시지와 함께 업로드 페이지를 다시 렌더링
+      // 폴더가 존재하지 않거나 읽을 수 없는 경우 (첫 방문 시)
+      if (err.code === "ENOENT") {
+        // 폴더가 없으면 빈 배열로 진행 (업로드 시 생성됨)
+        console.log(`폴더 없음: ${folderPath}, 새로 생성될 예정입니다.`);
+      } else {
+        console.error("폴더 읽기 오류:", err);
+        // 다른 오류는 에러 페이지 또는 메시지로 처리 가능
+        return res.status(500).send("폴더를 읽는 중 오류가 발생했습니다.");
+      }
+    } else {
+      imageFiles = files
+        .filter((file) => /\.(jpg|jpeg|png|gif)$/i.test(file)) // 이미지 파일만 필터링
+        .map((file) => ({
+          name: file,
+          url: `/uploads/${code}/${file}`, // 전체 URL 생성
+        }));
+    }
+    res.render("upload", {
+      code: code,
+      images: imageFiles,
+      error: null,
+      message: null,
+    });
+  });
+});
+
+// 이미지 업로드 처리 (특정 코드 폴더)
+app.post("/folder/:code/upload", (req, res) => {
+  const code = req.params.code;
+
+  upload.single("image")(req, res, function (err) {
+    const folderPath = path.join(__dirname, "uploads", code);
+    let imageFiles = [];
+    try {
+      const files = fs.readdirSync(folderPath);
+      imageFiles = files
+        .filter((file) => /\.(jpg|jpeg|png|gif)$/i.test(file))
+        .map((file) => ({
+          name: file,
+          url: `/uploads/${code}/${file}`,
+        }));
+    } catch (readError) {
+      // 업로드 성공 후 폴더 읽기 실패 시 (거의 발생하지 않음)
+      console.error("업로드 후 폴더 읽기 오류:", readError);
+    }
+
+    if (err) {
       return res.status(400).render("upload", {
+        code: code,
+        images: imageFiles, // 오류 발생 시에도 현재 파일 목록 전달
         error: err.message || "파일 업로드 중 오류가 발생했습니다.",
+        message: null,
       });
     }
 
     if (!req.file) {
-      // 파일이 없는 경우 오류 메시지와 함께 업로드 페이지를 다시 렌더링
       return res.status(400).render("upload", {
+        code: code,
+        images: imageFiles, // 파일 미선택 시에도 현재 파일 목록 전달
         error: "이미지를 업로드해주세요.",
+        message: null,
       });
     }
-    // 업로드 성공 시, 업로드된 파일명과 함께 결과 페이지 렌더링
-    // 클라이언트 사이드에서 localStorage에 저장할 수 있도록 파일명을 전달
-    res.render("result", { imageName: req.file.filename });
+    // 업로드 성공 시 결과 페이지 렌더링
+    res.render("result", {
+      imageName: req.file.filename,
+      code: code,
+      imageUrl: `/uploads/${code}/${req.file.filename}`, // 전체 URL 전달
+    });
   });
 });
-
-// '/파일이름' 경로로 이미지 직접 접근
-// 이 부분은 express.static 미들웨어가 처리하므로 별도 라우트 필요 없음
 
 app.listen(port, () => {
   console.log(`서버가 http://localhost:${port} 에서 실행 중입니다.`);
